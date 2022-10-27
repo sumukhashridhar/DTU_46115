@@ -26,13 +26,13 @@ yplus_180 = file_180(:,2);
 yplus_550 = file_550(:,2);
 
 figure
-plot(yplus_180, u_180);
+semilogx(yplus_180, u_180);
 title('Re 180')
 xlabel('y plus') 
 ylabel('U') 
 
 figure
-plot(yplus_550, u_550);
+semilogx(yplus_550, u_550);
 title('Re 550')
 xlabel('y plus') 
 ylabel('U') 
