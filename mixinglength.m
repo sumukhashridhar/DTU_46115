@@ -1,30 +1,12 @@
-%% Fully developed channel flow solver using Prandtl'x mixing length model
-% 46115 Turbuence modeling - Hamid Sarlak, Assoc. Prof. at DTU Wind and Energy Systems
-% Disclaimer: this code is provided to you 
-% without a guarantee on accuracy nor performance. 
-% It is to be used as a basis to complete Assignment 2
-% 
-close all
-clc; clear; clf;
-%% Channel Data
-h = 0.1; %full channel height [m]
-nu =1.48e-5; %kinematic viscosity [m^2/s]
-rho = 1.225; % density [kg/m^3]
-mu = nu*rho;
-
-Re_tau = 590; % Re_tau = u_tau*h/nu, input paramerer 
-
-%% Guess Theoretical Values
-
-u_tau = Re_tau * nu /(h/2); %Re_tau = u_tau*h/nu, friction velocity [m/s]
-dy_0_theory = 1/u_tau*nu; % y_plus = dy_0*u_tau/nu == 1, first grid spacing [m]
-tau_w = u_tau^2*rho; %wall shear stress [Pa]
-dp_dx = -2*tau_w/h; %[Pa/m]
-% dp_dx = dp_dx_dimension/(u_tau^2 * rho)*h; %[-] dimensionless pressure gradient
-
-%% Grid Generation
-
-R = 1.01; %stretching factor
+function [u,mu_T]=mixinglength(Re_tau,h,rho,nu)
+    mu = nu*rho;
+    
+    u_tau = Re_tau * nu /(h/2); %Re_tau = u_tau*h/nu, friction velocity [m/s]
+    dy_0_theory = 1/u_tau*nu; % y_plus = dy_0*u_tau/nu == 1, first grid spacing [m]
+    tau_w = u_tau^2*rho; %wall shear stress [Pa]
+    dp_dx = -2*tau_w/h; %[Pa/m]
+    
+    R = 1.01; %stretching factor
 
 dy_0 = dy_0_theory/(h/2);% non-dimensionalisation
 N_y_viscous = log((R - 1)/dy_0 + 1)/log(R) + 1; %Calculate grid points required in viscous sublayer
@@ -47,6 +29,8 @@ u_old = ones(N_y,1); %[m/s]
 
 %Boundary Condition
 u_old(1) = 0; %[m/s]
+
+mu_T_old=u_old;
 %% Solving: Finite Difference
 
 rms_err = 1; %initial value for rms_err
@@ -55,14 +39,6 @@ tol_rms = 1e-5; %convergence criteria
 
 kappa = 0.41; %van Karman constant
 
-lm = zeros(N_y,1); %store for mixing length
-VD = NaN(N_y,1); %store for Van Driest Damping function
-nu_T = NaN(N_y,1); %store for kinemtic Viscosity
-
-
-% Store stress profiles
-viscous_stress = zeros(1,N_y);
-turbulent_stress = zeros(1,N_y);
 
 %Compute dimensionless quantities
 l_plus = nu/u_tau; %[m]
@@ -75,7 +51,19 @@ a1=(y(2:end-1)-y(1:end-2))./(y(3:end)-y(2:end-1))./(y(3:end)-y(1:end-2));
 b1=((y(3:end)-y(2:end-1))./(y(3:end)-y(1:end-2))./(y(2:end-1)-y(1:end-2))-(y(2:end-1)-y(1:end-2))./(y(3:end)-y(2:end-1))./(y(3:end)-y(1:end-2)));
 c1=-(y(3:end)-y(2:end-1))./(y(3:end)-y(1:end-2))./(y(2:end-1)-y(1:end-2));
 
+X_old=zeros(2*N_y,1);
+
+X_old(1:2:end)=u_old;X_old(2:2:end)=mu_T_old;
+
 while  counter < 1e6  && rms_err > tol_rms     
+            
+    A1=zeros(N_y,1);B1=zeros(N_y,1);C1=zeros(N_y,1);
+    A1(2:end-1)=((2*mu+mu_T_old(3:end)+mu_T_old(2:end-1))./(y(3:end)-y(2:end-1))./(y(3:end)-y(1:end-2)));
+    B1(2:end-1)=-((2*mu+mu_T_old(3:end)+mu_T_old(2:end-1))./(y(3:end)-y(2:end-1))+(2*mu+mu_T_old(2:end-1)+mu_T_old(1:end-2))./(y(2:end-1)-y(1:end-2)))./(y(3:end)-y(1:end-2));
+    C1(2:end-1)=((2*mu+mu_T_old(2:end-1)+mu_T_old(1:end-2))./(y(2:end-1)-y(1:end-2))./(y(3:end)-y(1:end-2)));
+    
+    
+    J=sparse(2*N_y,2*N_y);G=zeros(2*N_y,1);
             
     %Van Driest Damping (Mixing length)
     A = 26;
@@ -84,44 +72,40 @@ while  counter < 1e6  && rms_err > tol_rms
     
     dudy=u_old(3:end).*a1+u_old(2:end-1).*b1+u_old(1:end-2).*c1; %Velocity Gradient
     
-    nu_T = lm(2:end-1).^2 .* abs(dudy); %Eddy viscosity
-    nu_T=[0;nu_T;0];
+    J=J+sparse(1,1,1,2*N_y,2*N_y,1);G(1)=u_old(1)-0;
+    J=J+sparse(2,2,1,2*N_y,2*N_y,1);G(2)=mu_T_old(1)-0;
     
-    mu_T = rho*nu_T;
+    for ii=2:N_y-1
+        J=J+sparse(2*(ii-1)+1,2*(ii-1)-1,C1(ii),2*N_y,2*N_y,1);
+        J=J+sparse(2*(ii-1)+1,2*(ii-1)+1,B1(ii),2*N_y,2*N_y,1);
+        J=J+sparse(2*(ii-1)+1,2*(ii-1)+3,A1(ii),2*N_y,2*N_y,1);
+        G(2*(ii-1)+1)=A1(ii)*u_old(ii+1)+B1(ii)*u_old(ii)+C1(ii)*u_old(ii-1)-dp_dx;
+        
+        J=J+sparse(2*(ii-1)+2,2*(ii-1)+2,1     ,2*N_y,2*N_y,1);
+        G(2*(ii-1)+2)=mu_T_old(ii)-rho*lm(ii).^2 .* abs(dudy(ii-1));
+    end
     
-    u=mean_velocity(mu,mu_T,y,dp_dx);
+    for ii=2*N_y-1:2*N_y
+        J=J+sparse(ii,ii-4,-0.5,2*N_y,2*N_y,1);
+        J=J+sparse(ii,ii-2, 2.0,2*N_y,2*N_y,1);
+        J=J+sparse(ii,ii-0,-1.5,2*N_y,2*N_y,1);
+    end
+    G(2*N_y-1)=-0.5*u_old(N_y-2)+2*u_old(N_y-1)-1.5*u_old(N_y);
+    G(2*N_y-0)=-0.5*mu_T_old(N_y-2)+2*mu_T_old(N_y-1)-1.5*mu_T_old(N_y);
     
-%     viscous_stress = nu*rho*dudy;
-%     turbulent_stress = rho*nu_T.*dudy;
-
-
+    delta=J\(-G);
+    
+    X=X_old+0.1*delta;
     
     counter = counter +1;
-    rms_err = rms(u_old-u)
-    u_old = u;
-    
-   
+    rms_err = norm(delta);
+%     u_old = u;
+    X_old=X;
+    u_old=X(1:2:end);
+    mu_T_old=X(2:2:end);
 end
 
-%% Plotting
-figure
-plot(u,y)
-title('Mean velocity')
+u=u_old;
+mu_T=mu_T_old;
 
-figure
-plot(mu_T,y,mu_T*0+mu,y)
-legend('\mu_T','\mu')
-title('Eddy viscosity \mu_T')
-
-u_plus=u/u_tau;
-y1=linspace(y_plus(1),20,100);
-
-figure
-semilogx(y_plus,u_plus,'LineWidth',2)
-hold on
-semilogx(y1,y1,'--')
-semilogx(y_plus,1/0.4187*log(9.793*y_plus),'--')
-xlabel('y^+')
-ylabel('U^+')
-hold off
-grid on
+end
