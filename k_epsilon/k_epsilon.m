@@ -1,5 +1,5 @@
 clc
-clear
+%clear
 close all
 
 %% Channel Data
@@ -8,7 +8,9 @@ nu =1.48e-5; %kinematic viscosity [m^2/s]
 rho = 1.225; % density [kg/m^3]
 mu=nu*rho;
 
-Re_tau = 590; % Re_tau = u_tau*h/nu, input paramerer 
+Re_tau = 182; % Re_tau = u_tau*h/nu, input paramerer 
+beta=0.05;%Relaxation factor, choose beta to be 0.05, 0.01 and 0.005 for Re=180 Re=590 Re=2000 respectively to avoid divergence
+damp=0;%0 no damp. fun. 1 with damp. fun.
 
 %% Guess Theoretical Values
 
@@ -91,17 +93,17 @@ abc=2/(y(2)-y(3))*(1/(y(3)-y(1))-1/(y(2)-y(1)));
 bbc=2/(y(2)-y(1))/(y(2)-y(3));
 cbc=-2/(y(3)-y(1))/(y(2)-y(3));
 
-beta=0.01;%Relaxation factor, choose beta to be 0.05, 0.01 and 0.005 for Re=180 Re=590 Re=2000 respectively to avoid divergence
-damp=1;%0 no damp. fun. 1 with damp. fun.
+
 y_plus=y*u_tau/nu;
 
 while  counter < 1e6  && rms_err > tol_rms
     counter=counter+1;
     
-    Rt=k_old.^2./nu./epsilon_old;
+    Rt=k_old.^2./nu./epsilon_old;Ry=sqrt(k_old).*y;
     f2=((1-0.3*exp(-Rt.^2))*damp+(1-damp)*1)*0+1;
-    f_mu=(1-exp(-y_plus/150)).^2*damp+(1-damp)*1;%exp(-3.4./(1+Rt/50).^2)*(damp)+(1-damp);
-    mu_T=eddy_viscosity(k_old,epsilon_old,rho,C_mu*f_mu);
+    f_mu1=(1-exp(-y_plus/150)).^2*damp+(1-damp)*1;%exp(-3.4./(1+Rt/50).^2)*(damp)+(1-damp);
+    
+    mu_T=f_mu1.*eddy_viscosity(k_old,epsilon_old,rho,C_mu);
     
     u=mean_velocity(mu,mu_T,y,dp_dx);
     
@@ -131,27 +133,38 @@ end
 
 %% Plotting
 figure
-plot(u,y)
+plot(u,y,'LineWidth',2)
 title('Mean velocity')
+grid on
 
 Re_stress=mu_T.*[0;dudy;0];
 figure
-plot(Re_stress,y)
+plot(Re_stress,y,'LineWidth',2)
 title('Reynolds stress')
+xlabel('$\rho\overline{u''_iu''_j}$','Interpreter','latex')
+ylabel('y')
+grid on
 
 figure
 plot(mu_T,y)
 title('Eddy viscosity \mu_T')
+grid on
 
 figure
-plot(k,y)
+plot(k,y,'LineWidth',2)
 title('TKE')
 xlim([0 Inf])
+xlabel('$\frac{1}{2}\overline{u''_iu''_i}$','Interpreter','latex')
+ylabel('y')
+grid on
 
 figure
-plot(epsilon,y)
+plot(epsilon,y,'LineWidth',2)
 title('TK dissipation rate \epsilon')
 xlim([0 Inf])
+xlabel('\epsilon')
+ylabel('y')
+grid on
 
 u_plus=u/u_tau;
 y1=linspace(y_plus(1),20,100);

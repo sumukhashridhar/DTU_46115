@@ -1,5 +1,5 @@
 clc
-clear
+% clear
 close all
 
 %% Channel Data
@@ -8,8 +8,8 @@ nu =1.48e-5; %kinematic viscosity [m^2/s]
 rho = 1.225; % density [kg/m^3]
 mu=nu*rho;
 
-Re_tau = 180; % Re_tau = u_tau*h/nu, input paramerer 
-Beta=0.005;%Relaxation factor, choose beta to be 0.05, 0.01 and 0.005 for Re=180 Re=590 Re=2000 respectively to avoid divergence
+Re_tau = 8000; % Re_tau = u_tau*h/nu, input paramerer 
+Beta=0.005;%Relaxation factor, choose beta to be 0.01, 0.01 and 0.005 for Re=180 Re=590 Re=2000 respectively to avoid divergence
 
 %% Guess Theoretical Values
 
@@ -46,7 +46,7 @@ beta1=0.075;beta2=0.0828;
 
 % mu_T = zeros(N_y,1);
 % u_old = mean_velocity(mu,mu_T,y,dp_dx); %[m/s]
-[u_old,mu_T_old]=mixinglength(Re_tau,h,rho,nu);
+[u_old,mu_T_old]=mixinglength(Re_tau,h,rho,nu);u_mixinglength=u_old;
 omega_old=0.3*ones(N_y,1);
 k_old=0.1*ones(N_y,1);
 
@@ -131,40 +131,53 @@ while  counter<1e10 && rms_err>tol_rms
     omega_old=omega;
     mu_T_old=mu_T;
     
-    
+    res(counter)=rms_err;
     
 end
 
 %% Plotting
 figure
-plot(u,y)
+plot(u,y,'LineWidth',2)
 title('Mean velocity')
+xlabel('u')
+ylabel('y')
+grid on
 
 dudy=u_old(3:end).*a1+u_old(2:end-1).*b1+u_old(1:end-2).*c1;
 Re_stress=mu_T.*[0;dudy;0];
 figure
-plot(Re_stress,y)
+plot(Re_stress,y,'LineWidth',2)
 title('Reynolds stress')
+xlabel('$\rho\bar{u''v''}$','Interpreter','Latex')
+ylabel('y')
+grid on
 
 figure
 plot(mu_T,y)
 title('Eddy viscosity \mu_T')
+ylabel('y')
 
 figure
-plot(k,y)
+plot(k,y,'LineWidth',2)
 title('TKE')
+xlabel('$\frac{1}{2}\overline{u''_iu''_i}$','Interpreter','latex')
+ylabel('y')
+grid on
+
 
 figure
-plot(omega,y)
-title('TK dissipation rate \epsilon')
+plot(omega,y,'LineWidth',2)
+title('TK dissipation rate \omega')
+xlabel('\omega')
+grid on
 
 u_plus=u/u_tau;
-y1=linspace(y_plus(1),20,100);
+y11=linspace(y_plus(1),20,100);
 figure
 semilogx(y_plus,u_plus,'LineWidth',2)
 hold on
-semilogx(y1,y1,'--')
-semilogx(y_plus,1/0.4187*log(9.793*y_plus),'--')
+semilogx(y11,y11,'--', 'HandleVisibility','off')
+semilogx(y_plus,1/0.4187*log(9.793*y_plus),'--', 'HandleVisibility','off')
 xlabel('y^+')
 ylabel('U^+')
 hold off

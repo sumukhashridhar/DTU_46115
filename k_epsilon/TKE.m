@@ -21,4 +21,5 @@ function k=TKE(rho,mu_T,mu,sigma_k,y,epsilon,P)
     end
     bk(2:end-1)=rho*(epsilon(2:end-1)-P);
     k=Ak\bk;
+    k=max(eps,k);
 end

@@ -12,7 +12,7 @@ function epsilon=dissipation(rho,P,mu,mu_T,y,sigma_epsilon,C_epsilon_1,C_epsilon
     aPe(2:end-1)=B1;%+C_epsilon_1.*P./k(2:end-1)-2*C_epsilon_2*epsilon_old(2:end-1)./k(2:end-1);
     aWe(2:end-1)=C1;
 
-    Ae=Ae+sparse(1,1,1,N_y,N_y,1);be(1)=0;
+    Ae=Ae+sparse(1,1,1,N_y,N_y,1);be(1)=mu/rho*k(1)/(y(2)-y(1))^2;
     Ae=Ae+sparse(N_y,N_y,-1.5,N_y,N_y,1);Ae=Ae+sparse(N_y,N_y-1,2,N_y,N_y,1);Ae=Ae+sparse(N_y,N_y-2,-0.5,N_y,N_y,1);be(N_y)=0;
 
     for i=2:N_y-1
@@ -22,7 +22,7 @@ function epsilon=dissipation(rho,P,mu,mu_T,y,sigma_epsilon,C_epsilon_1,C_epsilon
         be(i)=epsilon_old(i)/k(i)*rho*(C_epsilon_2(i)*epsilon_old(i)-C_epsilon_1*P(i-1));%C_epsilon_2/k(i)*epsilon_old(i)^2-C_epsilon_1/k(i)*P(i-1)*epsilon_old(i);
     end
     epsilon=Ae\be;
-    
+    epsilon=max(eps,epsilon);
     
 %     while error>tol
 %         aEe(2:end-1)=A1;
